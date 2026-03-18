@@ -70,6 +70,8 @@ def getProperties(access_token, device_serial_number):
 
     return respjson
 
+import os
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
@@ -81,10 +83,8 @@ if __name__ == "__main__":
     access_token = login("schneider-5w-id", "schneider-4p5If6sO_QS9F0mQLJmOoCxswng", args.email, args.password)
     devices = getDevices(access_token)
 
-    with open("devices.json", "w") as f:
+    out_path = os.path.join(os.path.dirname(__file__), '..', 'json', 'devices.json')
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "w") as f:
         f.write(jsonpickle.encode(devices, indent=4, unpicklable=False))
-        logging.info(f"Retrieved {len(devices)} devices.")
-    
-
-
-
+        logging.info(f"Retrieved {len(devices)} devices — written to {out_path}")

@@ -91,7 +91,7 @@ if __name__ == '__main__':
                         default=int(os.environ.get('BIND_PORT', 10275)),
                         help='Port to bind the bridge server on')
     parser.add_argument('--devices', dest='devices', type=str,
-                        default=os.environ.get('DEVICES_PATH', './devices.json'),
+                        default=os.environ.get('DEVICES_PATH', '../json/devices.json'),
                         help='Path to devices.json')
     args = parser.parse_args()
 

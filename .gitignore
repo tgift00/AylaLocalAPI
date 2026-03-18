@@ -48,4 +48,4 @@ Thumbs.db
 htmlcov/
 
 # Other
-#devices.json
+json/devices.json

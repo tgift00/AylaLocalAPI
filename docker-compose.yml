@@ -6,6 +6,6 @@ services:
       - BIND_PORT=10275
       - DEVICES_PATH=./devices.json
     volumes:
-      - ./src/devices.json:/app/src/devices.json:ro
+      - ./json/devices.json:/app/src/devices.json:ro
     network_mode: host
     restart: unless-stopped
