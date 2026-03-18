@@ -1,5 +1,6 @@
 services:
   ayla-bridge:
+    container_name: ayla-bridge
     build: .
     environment:
       - BIND_IP=192.168.1.8
