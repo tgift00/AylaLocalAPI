@@ -187,6 +187,7 @@ class AylaAPIHttpServer(BaseHTTPRequestHandler):
                 return
 
             device.set_property(prop, value)
+            device.update_property_cache(prop, value)
             logging.info(f'[AylaAPI] command — {dsn} {prop}={value}')
             self._send_json(200, {'ok': True, 'property': prop, 'value': value})
 
