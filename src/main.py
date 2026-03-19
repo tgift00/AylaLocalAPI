@@ -34,10 +34,11 @@ def get_local_ip():
 
 def send_ping_forever(api: AylaAPI, device: Device):
     keep_alive = device.Lanip['lanip'].get('keep_alive', 30)
-    logging.info(f'[Main] Ping loop started for {device.dsn} ({device.lan_ip}) every {keep_alive}s')
+    logging.info(f'[Main] Registering {device.dsn} ({device.lan_ip}), then keep-alive every {keep_alive}s')
+    device.register()
     while True:
-        device.ping()
         time.sleep(keep_alive)
+        device.ping()
 
 
 def register_mdns(ip, port, devices):

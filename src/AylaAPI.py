@@ -267,7 +267,7 @@ class Device:
 
     def ping(self, notify=0):
         try:
-            r = requests.post(
+            r = requests.put(
                 f'http://{self.lan_ip}/local_reg.json',
                 json={'local_reg': {'uri': '/local_lan', 'notify': notify, 'ip': api.ip, 'port': api.port}},
                 timeout=5,
@@ -276,6 +276,18 @@ class Device:
                 logging.warning(f'[AylaAPI] ping — {self.lan_ip} returned {r.status_code}')
         except Exception as e:
             logging.warning(f'[AylaAPI] ping — {self.lan_ip} failed: {e}')
+
+    def register(self):
+        try:
+            r = requests.post(
+                f'http://{self.lan_ip}/local_reg.json',
+                json={'local_reg': {'uri': '/local_lan', 'notify': 0, 'ip': api.ip, 'port': api.port}},
+                timeout=5,
+            )
+            if r.status_code != 202:
+                logging.warning(f'[AylaAPI] register — {self.lan_ip} returned {r.status_code}')
+        except Exception as e:
+            logging.warning(f'[AylaAPI] register — {self.lan_ip} failed: {e}')
 
     def get_writeable_property_names(self):
         return [dp.property['name'] for dp in self.properties if not dp.property['read_only']]
