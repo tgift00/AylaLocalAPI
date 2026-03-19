@@ -1,4 +1,5 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 from AylaEncryption import AylaEncryption
 from base64 import b64encode, b64decode
 import logging
@@ -8,6 +9,10 @@ import threading
 import requests
 
 api = None
+
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
 
 
 class AylaAPIHttpServer(BaseHTTPRequestHandler):
@@ -356,7 +361,7 @@ class AylaAPI:
         return None
 
     def start(self):
-        self.server = HTTPServer((self.ip, self.port), AylaAPIHttpServer)
+        self.server = ThreadedHTTPServer((self.ip, self.port), AylaAPIHttpServer)
         logging.info(f'[AylaAPI] Server listening on {self.ip}:{self.port}')
         self.server.serve_forever()
 
