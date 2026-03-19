@@ -265,7 +265,7 @@ class Device:
             },
         }
 
-    def ping(self, notify=0):
+    def ping(self, notify=1):
         try:
             r = requests.put(
                 f'http://{self.lan_ip}/local_reg.json',

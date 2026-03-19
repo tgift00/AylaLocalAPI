@@ -33,7 +33,7 @@ def get_local_ip():
 
 
 def send_ping_forever(api: AylaAPI, device: Device):
-    keep_alive = device.Lanip['lanip'].get('keep_alive', 30)
+    keep_alive = 10  # Match phone app's 10s keep-alive interval
     logging.info(f'[Main] Registering {device.dsn} ({device.lan_ip}), then keep-alive every {keep_alive}s')
     device.register()
     while True:
