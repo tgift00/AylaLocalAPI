@@ -148,10 +148,13 @@ class AylaAPIHttpServer(BaseHTTPRequestHandler):
             # Cache decrypted property values
             try:
                 dec_json = json.loads(dec.decode('utf-8').rstrip('\x00'))
-                if 'property' in dec_json:
-                    prop = dec_json['property']
-                    name = prop.get('name')
-                    value = prop.get('value')
+                logging.info(f'[AylaAPI] datapoint — {device.dsn} decrypted: {dec_json}')
+
+                # Try both known structures: {"property": {...}} and {"data": {...}}
+                prop_data = dec_json.get('property') or dec_json.get('data')
+                if prop_data:
+                    name = prop_data.get('name')
+                    value = prop_data.get('value')
                     if name is not None and value is not None:
                         device.update_property_cache(name, value)
                         logging.info(f'[AylaAPI] datapoint — {device.dsn} {name}={value}')
