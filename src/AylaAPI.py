@@ -5,6 +5,7 @@ from base64 import b64encode, b64decode
 import logging
 import json
 import time
+import socket
 import threading
 import requests
 
@@ -121,6 +122,12 @@ class AylaAPIHttpServer(BaseHTTPRequestHandler):
 
             device.crypt_config = config
             device.connected = True
+
+            # Update lan_ip if device connected from a different address
+            host_ip = self.client_address[0]
+            if device.lan_ip != host_ip:
+                logging.info(f'[AylaAPI] key_exchange — {device.dsn} IP changed: {device.lan_ip} → {host_ip}')
+                device.lan_ip = host_ip
 
             resp = f'{{"random_2": "{config.SRnd2}", "time_2": {config.NTime2}}}'
 
@@ -279,8 +286,11 @@ class Device:
             )
             if r.status_code != 202:
                 logging.warning(f'[AylaAPI] ping — {self.lan_ip} returned {r.status_code}')
+                return False
+            return True
         except Exception as e:
             logging.warning(f'[AylaAPI] ping — {self.lan_ip} failed: {e}')
+            return False
 
     def register(self):
         try:
@@ -291,8 +301,58 @@ class Device:
             )
             if r.status_code != 202:
                 logging.warning(f'[AylaAPI] register — {self.lan_ip} returned {r.status_code}')
+                return False
+            return True
         except Exception as e:
             logging.warning(f'[AylaAPI] register — {self.lan_ip} failed: {e}')
+            return False
+
+    def rediscover_ip(self, subnet=None):
+        """Scan subnet for this device by probing port 80 and verifying via key exchange."""
+        if subnet is None:
+            subnet = '.'.join(self.lan_ip.split('.')[:3])
+
+        expected_key_id = self.Lanip['lanip']['lanip_key_id']
+        old_ip = self.lan_ip
+        logging.info(f'[AylaAPI] rediscover — scanning {subnet}.1-254 for {self.dsn} (key_id: {expected_key_id})')
+
+        for i in range(1, 255):
+            ip = f'{subnet}.{i}'
+            if ip == api.ip:
+                continue
+
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.3)
+            try:
+                s.connect((ip, 80))
+                s.close()
+            except Exception:
+                s.close()
+                continue
+
+            # Port 80 is open — try registration and wait for key exchange
+            logging.info(f'[AylaAPI] rediscover — port 80 open on {ip}, sending registration')
+            try:
+                r = requests.post(
+                    f'http://{ip}/local_reg.json',
+                    json={'local_reg': {'uri': '/local_lan', 'notify': 0, 'ip': api.ip, 'port': api.port}},
+                    timeout=3,
+                )
+                if r.status_code != 202:
+                    continue
+            except Exception:
+                continue
+
+            # Wait for key exchange callback from device
+            for _ in range(10):
+                time.sleep(0.5)
+                if self.crypt_config is not None and self.connected:
+                    self.lan_ip = ip
+                    logging.info(f'[AylaAPI] rediscover — found {self.dsn} at {ip} (was {old_ip})')
+                    return True
+
+        logging.warning(f'[AylaAPI] rediscover — {self.dsn} not found on {subnet}.x')
+        return False
 
     def get_writeable_property_names(self):
         return [dp.property['name'] for dp in self.properties if not dp.property['read_only']]

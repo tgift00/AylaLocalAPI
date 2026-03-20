@@ -32,13 +32,41 @@ def get_local_ip():
         s.close()
 
 
-def send_ping_forever(api: AylaAPI, device: Device):
+REDISCOVER_AFTER = 3  # consecutive ping failures before subnet scan
+
+
+def send_ping_forever(api: AylaAPI, device: Device, subnet=None):
     keep_alive = 10  # Match phone app's 10s keep-alive interval
+    failures = 0
+
     logging.info(f'[Main] Registering {device.dsn} ({device.lan_ip}), then keep-alive every {keep_alive}s')
-    device.register()
+    if not device.register():
+        failures += 1
+
     while True:
         time.sleep(keep_alive)
-        device.ping()
+
+        if device.ping():
+            if failures > 0:
+                logging.info(f'[Main] {device.dsn} recovered after {failures} failure(s)')
+            failures = 0
+            continue
+
+        failures += 1
+        logging.warning(f'[Main] {device.dsn} ping failed ({failures}/{REDISCOVER_AFTER})')
+
+        if failures >= REDISCOVER_AFTER:
+            logging.info(f'[Main] {device.dsn} unreachable at {device.lan_ip} — starting rediscovery')
+            device.connected = False
+            device.crypt_config = None
+
+            if device.rediscover_ip(subnet):
+                logging.info(f'[Main] {device.dsn} rediscovered at {device.lan_ip} — re-registering')
+                device.register()
+                failures = 0
+            else:
+                logging.warning(f'[Main] {device.dsn} not found on subnet — retrying in {keep_alive}s')
+                failures = REDISCOVER_AFTER  # keep triggering rediscovery each cycle
 
 
 def register_mdns(ip, port, devices):
@@ -94,6 +122,9 @@ if __name__ == '__main__':
     parser.add_argument('--devices', dest='devices', type=str,
                         default=os.environ.get('DEVICES_PATH', '../json/devices.json'),
                         help='Path to devices.json')
+    parser.add_argument('--subnet', dest='subnet', type=str,
+                        default=os.environ.get('SUBNET', None),
+                        help='Subnet prefix for device rediscovery (e.g. 192.168.1). Auto-detected from device IP if not set.')
     args = parser.parse_args()
 
     if not args.bind:
@@ -114,7 +145,7 @@ if __name__ == '__main__':
     for device in bridge.devices:
         threading.Thread(
             target=send_ping_forever,
-            args=[bridge, device],
+            args=[bridge, device, args.subnet],
             daemon=True,
             name=f'ping-{device.dsn}',
         ).start()

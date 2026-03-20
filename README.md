@@ -11,6 +11,7 @@ This project is a fork of [jakecrowley/AylaLocalAPI](https://github.com/jakecrow
 This fork extends the original with:
 - **REST bridge API** (`/api/health`, `/api/status`, `/api/command`) for external consumers
 - **Physical button state detection** — POST for initial registration, PUT with `notify=1` every 10s keep-alive (matching the official APC phone app's protocol)
+- **IP rediscovery** — automatic subnet scan when a device's IP changes (e.g., DHCP lease renewal)
 - **Docker deployment** with host networking for Raspberry Pi
 - **mDNS advertisement** (`_ayla-bridge._tcp`) for automatic discovery
 - **Threaded HTTP server** to handle concurrent requests
@@ -68,6 +69,15 @@ docker compose up -d --build
 ```bash
 python src/main.py --bind 192.168.1.8 --port 10275
 ```
+
+### Environment Variables
+
+| Variable       | Default          | Description                                      |
+|----------------|------------------|--------------------------------------------------|
+| `BIND_IP`      | *(auto-detect)*  | IP address for the bridge to listen on           |
+| `BIND_PORT`    | `10275`          | Port for the bridge REST API                     |
+| `DEVICES_PATH` | `../json/devices.json` | Path to device credentials file            |
+| `SUBNET`       | *(from device IP)* | Subnet prefix for IP rediscovery (e.g., `192.168.1`) |
 
 ### 4. Verify
 
@@ -148,6 +158,22 @@ AylaLocalAPI/
 └── Ayla IoT RSA key exchange.md
 ```
 
+## Device IP Rediscovery
+
+If a device's IP address changes (e.g., DHCP lease renewal, router reboot), the bridge automatically rediscovers it:
+
+1. Keep-alive pings fail 3 consecutive times
+2. Bridge scans the subnet (derived from the device's last known IP) on port 80
+3. For each host with port 80 open, bridge sends a registration request
+4. Device responds with a key exchange — bridge matches the `key_id` to confirm identity
+5. `lan_ip` is updated in memory and normal operation resumes
+
+The subnet can be overridden via the `SUBNET` environment variable or `--subnet` CLI argument (e.g., `192.168.1`). If not set, it's derived from the device's last known IP.
+
+The key exchange provides cryptographic identity verification — the bridge will never accidentally connect to the wrong device.
+
+> **Tip:** For the most reliable setup, assign a DHCP reservation on your router for the device's MAC address. Rediscovery is a safety net, not a replacement for stable addressing.
+
 ## Physical Button State Detection
 
 A key discovery in this fork: the device only reports physical button toggles when the bridge maintains a session using the same protocol as the official APC phone app:
@@ -161,6 +187,7 @@ Without the PUT keep-alive (or using POST for both), the device establishes a se
 
 - **Phone app conflict** — Running the APC phone app simultaneously causes the device to flood repeated datapoints, which can overwhelm the bridge. The phone app becomes redundant once local control is working.
 - **Session persistence** — If the bridge restarts, session keys are lost. The bridge re-registers on startup and the device re-initiates key exchange.
+- **Rediscovery scan time** — Subnet scan probes up to 254 hosts with a 0.3s timeout each. Worst case ~76 seconds if the device is offline entirely.
 - **Single device type tested** — Only verified with APC Smart SurgeArrest (PH6U4X32). Other Ayla IoT devices may work but are untested.
 
 ## SmartThings Integration
