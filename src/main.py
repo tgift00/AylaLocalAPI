@@ -22,13 +22,19 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 def get_local_ip():
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
         s.settimeout(0)
+        s.connect(('10.255.255.255', 1))
+        return s.getsockname()[0]
+    except Exception:
+        return None
+    finally:
         try:
-            s.connect(('10.255.255.255', 1))
-            return s.getsockname()[0]
-        except Exception:
-            return None
+            s.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        s.close()
 
 
 REDISCOVER_AFTER = 3  # consecutive ping failures before subnet scan
