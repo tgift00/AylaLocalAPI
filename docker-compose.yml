@@ -5,8 +5,8 @@ services:
     environment:
       - BIND_IP=192.168.1.8
       - BIND_PORT=10275
-      - DEVICES_PATH=./devices.json
+      - DEVICES_PATH=/app/data/devices.json
     volumes:
-      - ./json/devices.json:/app/src/devices.json:ro
+      - ./json:/app/data
     network_mode: host
     restart: unless-stopped

@@ -191,6 +191,40 @@ A key discovery in this fork: the device only reports physical button toggles wh
 
 Without the PUT keep-alive (or using POST for both), the device establishes a session and responds to commands but never pushes state changes for physical button presses.
 
+## Adding Devices
+
+The bridge manages all APC devices registered to your Ayla cloud account. `devices.json` contains the credentials for every device — it's fetched once and reused.
+
+### First Device
+
+1. Set up the APC device via the official APC app (handles WiFi provisioning and Ayla cloud registration)
+2. Retrieve credentials using one of:
+   - **Auto-fetch**: Set `APC_EMAIL` and `APC_PASSWORD` env vars, start the bridge — `devices.json` is created automatically
+   - **Manual**: Run `python src/get_devices.py <email> <password>`
+3. Start (or restart) the bridge
+
+### Adding Another Device
+
+1. Set up the new APC device via the official APC app
+2. Delete the existing `devices.json`:
+   ```bash
+   rm json/devices.json
+   ```
+3. Re-fetch credentials (pulls **all** devices from the account in one call):
+   - **Auto-fetch**: Restart the bridge — it detects the missing file and re-fetches
+   - **Manual**: Run `python src/get_devices.py <email> <password>`
+4. Restart the bridge — it picks up all devices from the updated file
+
+> **Note:** `get_devices.py` always retrieves every device on the account. Deleting and re-fetching is safe — existing device credentials (including `lanip_key`) don't change.
+
+### What's in `devices.json`
+
+Each device entry contains:
+- `dsn` — device serial number (permanent)
+- `lan_ip` — current LAN IP (may change; bridge handles this via [rediscovery](#device-ip-rediscovery))
+- `lanip_key` — shared secret for AES encryption (permanent unless factory reset)
+- `properties` — full property list with names, types, and initial values
+
 ## Known Limitations
 
 - **Phone app conflict** — Running the APC phone app simultaneously causes the device to flood repeated datapoints, which can overwhelm the bridge. The phone app becomes redundant once local control is working.
