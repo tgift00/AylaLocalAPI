@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from AylaAPI import AylaAPI, Device
+from get_devices import fetch_and_save
 import logging
 import argparse
 import os
@@ -21,15 +22,13 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 def get_local_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.settimeout(0)
-    try:
-        s.connect(('10.255.255.255', 1))
-        return s.getsockname()[0]
-    except Exception:
-        return None
-    finally:
-        s.close()
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.settimeout(0)
+        try:
+            s.connect(('10.255.255.255', 1))
+            return s.getsockname()[0]
+        except Exception:
+            return None
 
 
 REDISCOVER_AFTER = 3  # consecutive ping failures before subnet scan
@@ -132,6 +131,18 @@ if __name__ == '__main__':
         raise SystemExit(1)
 
     logging.info(f'[Main] Starting Ayla bridge on {args.bind}:{args.port}')
+
+    # Auto-fetch devices.json if credentials are provided and file is missing
+    ayla_email = os.environ.get('APC_EMAIL')
+    ayla_password = os.environ.get('APC_PASSWORD')
+    if ayla_email and ayla_password and not os.path.exists(args.devices):
+        logging.info(f'[Main] devices.json not found at {args.devices} — fetching from Ayla cloud')
+        if not fetch_and_save(ayla_email, ayla_password, args.devices):
+            logging.error('[Main] Failed to fetch devices.json — cannot start')
+            raise SystemExit(1)
+    elif not os.path.exists(args.devices):
+        logging.error(f'[Main] {args.devices} not found — set APC_EMAIL and APC_PASSWORD to auto-fetch, or run get_devices.py manually')
+        raise SystemExit(1)
 
     bridge = AylaAPI(args.bind, args.port, args.devices)
 

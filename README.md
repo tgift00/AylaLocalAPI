@@ -41,12 +41,18 @@ APC Device ◄──Ayla LAN Protocol──► Python Bridge ◄──REST API�
 
 ### 1. Retrieve Device Credentials
 
+The bridge needs a `devices.json` file containing your device's DSN, IP, encryption keys, and properties. There are two ways to get it:
+
+**Option A: Automatic (Docker)** — Set `APC_EMAIL` and `APC_PASSWORD` in your environment. The bridge will fetch `devices.json` from the Ayla cloud on first startup if the file doesn't exist.
+
+**Option B: Manual** — Run `get_devices.py` yourself:
+
 ```bash
 pip install -r requirements.txt
 python src/get_devices.py <email> <password>
 ```
 
-This authenticates with the Ayla cloud, retrieves your device info and local encryption keys, and writes `json/devices.json`.
+Either way, the cloud is only contacted once. The `lanip_key` in `devices.json` never changes unless you factory reset the device.
 
 ### 2. Run with Docker (Recommended)
 
@@ -78,6 +84,8 @@ python src/main.py --bind 192.168.1.8 --port 10275
 | `BIND_PORT`    | `10275`          | Port for the bridge REST API                     |
 | `DEVICES_PATH` | `../json/devices.json` | Path to device credentials file            |
 | `SUBNET`       | *(from device IP)* | Subnet prefix for IP rediscovery (e.g., `192.168.1`) |
+| `APC_EMAIL`    | *(none)*         | Ayla cloud email — if set with `APC_PASSWORD`, auto-fetches `devices.json` on first run |
+| `APC_PASSWORD`  | *(none)*        | Ayla cloud password                              |
 
 ### 4. Verify
 
